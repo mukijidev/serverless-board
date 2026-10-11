@@ -16,7 +16,7 @@ public class DeletePostHandler implements  RequestHandler<APIGatewayProxyRequest
 
         String userId = Auth.userId(event);
         if (userId == null) {
-            return ApiResponses.error(401, "Unauthoirzed");
+            return ApiResponses.error(401, "Unauthorized");
         }
 
         String postId = PostRules.postId(event);
@@ -25,7 +25,7 @@ public class DeletePostHandler implements  RequestHandler<APIGatewayProxyRequest
         }
 
         try {
-            return switch (repository.delete(postId, userId)) {
+            return switch (repository.delete(postId, userId).outcome()) {
                 case OK -> ApiResponses.noContent();
                 case NOT_FOUND -> ApiResponses.error(404, "Post not found");
                 case FORBIDDEN -> ApiResponses.error(403, "You are not the author of this post");

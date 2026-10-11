@@ -6,16 +6,15 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.myorg.board.common.ApiResponses;
+import com.myorg.board.common.Auth;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 import java.time.Duration;
 
+
 public class PresignedUrlHandler implements RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
-
-    private static final long MAX_SIZE_BYTES = 5L * 1024 * 1024;
-
 
     private final String bucketName = System.getenv("BUCKET_NAME");
     private final S3Presigner presigner  = S3Presigner.create();
@@ -23,6 +22,11 @@ public class PresignedUrlHandler implements RequestHandler<APIGatewayProxyReques
 
     @Override
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent event, Context context) {
+        String userId = Auth.userId(event);
+        if (userId == null) {
+            return ApiResponses.error(401, "Unauthorized");
+        }
+
         String body = event.getBody();
         if (body == null || body.isBlank()) {
             return ApiResponses.error(400, "Request body is required");
@@ -44,7 +48,7 @@ public class PresignedUrlHandler implements RequestHandler<APIGatewayProxyReques
             return ApiResponses.error(400,"content type must be image/jpeg or image/png");
         }
 
-        if(request.size() <= 0 || request.size() > MAX_SIZE_BYTES)
+        if(request.size() <= 0 || request.size() > ImageKeys.MAX_SIZE_BYTES)
         {
             return ApiResponses.error(400, "size must be between 1 and 5MB ");
         }

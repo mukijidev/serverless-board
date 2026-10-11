@@ -6,7 +6,6 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.myorg.board.common.ApiResponses;
-import com.myorg.board.upload.ImageKeys;
 import com.myorg.board.common.Auth;
 
 import java.time.Instant;
@@ -76,12 +75,13 @@ public class CreatePostHandler
         post.setImageKeys(imageKeys);
 
         try {
-            repository.save(post);
+            Result<Post> result = repository.save(post);
+            return ApiResponses.json(201, PostResponse.from(result.value()));
         } catch (RuntimeException e) {
             context.getLogger().log("Failed to save post: " + e);
             return ApiResponses.error(500, "Internal server error");
         }
-        return ApiResponses.json(201, PostResponse.from(post));
+
     }
 
     private static boolean isBlank(String value) {

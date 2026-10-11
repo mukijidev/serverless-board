@@ -56,10 +56,10 @@ public class UpdatePostHandler implements RequestHandler<APIGatewayProxyRequestE
         }
 
         try {
-            UpdateResult result = repository.update(
+            Result<Post> result = repository.update(
                     postId, userId, request.title(), request.content(), request.imageKeys());
             return switch (result.outcome()) {
-                case OK -> ApiResponses.json(200, PostResponse.from(result.post()));
+                case OK -> ApiResponses.json(200, PostResponse.from(result.value()));
                 case NOT_FOUND -> ApiResponses.error(404, "Post not found");
                 case FORBIDDEN -> ApiResponses.error(403, "You are not the author of this post");
             };

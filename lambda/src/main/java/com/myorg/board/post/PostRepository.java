@@ -33,8 +33,9 @@ public class PostRepository {
         this.index = table.index("gsi1");
     }
 
-    public void save(Post post) {
+    public Result<Post> save(Post post) {
         table.putItem(post);
+        return Result.ok(post);
     }
 
     public List<Post> listLatest(int limit) {
@@ -52,7 +53,7 @@ public class PostRepository {
         return posts;
     }
 
-    public UpdateResult update(String postId, String userId, String title, String content,
+    public Result<Post> update(String postId, String userId, String title, String content,
                                List<String> imageKeys) {
             Post change = new Post();
             change.setPk(partitionKey(postId));
@@ -68,32 +69,34 @@ public class PostRepository {
                         .conditionExpression(ownerCondition(userId))
                         .returnValuesOnConditionCheckFailure(ReturnValuesOnConditionCheckFailure.ALL_OLD)
                         .build());
-                return new UpdateResult(Outcome.OK, updated);
+                return Result.ok(updated);
             } catch(ConditionalCheckFailedException e){
-                return new UpdateResult(failureOutcome(e), null);
+                return failure(e);
             }
     }
 
 
-    public Outcome delete(String postId, String userId) {
+    public Result<Void> delete(String postId, String userId) {
         try {
             table.deleteItem(DeleteItemEnhancedRequest.builder()
                     .key(Key.builder().partitionValue(partitionKey(postId)).sortValue(META).build())
                     .conditionExpression(ownerCondition(userId))
                     .returnValuesOnConditionCheckFailure(ReturnValuesOnConditionCheckFailure.ALL_OLD)
                     .build());
-            return Outcome.OK;
+            return Result.ok(null);
 
         } catch (ConditionalCheckFailedException e ){
-            return failureOutcome(e);
+            return failure(e);
         }
 
 
     }
 
-    private Outcome failureOutcome(ConditionalCheckFailedException  e) {
-        return e.hasItem() ? Outcome.FORBIDDEN : Outcome.NOT_FOUND;
+    private static<T> Result<T> failure(ConditionalCheckFailedException e)
+    {
+        return e.hasItem() ? Result.forbidden() : Result.notFound();
     }
+
     private static Expression ownerCondition(String userId) {
         return Expression.builder()
                 .expression("attribute_exists(pk) AND authorId = :uid")
