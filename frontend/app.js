@@ -174,6 +174,19 @@ function renderPosts(posts) {
   }
 }
 
+function renderImages(imageKeys) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "post-images";
+  for (const key of imageKeys) {
+    const image = document.createElement("img");
+    image.src = `/${key}`;
+    image.alt = "Attached Image";
+    image.loading = "lazy";
+    wrapper.append(image);
+  }
+  return wrapper;
+}
+
 function renderPost(post, user) {
   const item = document.createElement("li");
   item.className = "post";
@@ -192,6 +205,10 @@ function renderPost(post, user) {
   content.className = "post-content";
   content.textContent = post.content;
 
+  if (post.imageKeys && post.imageKeys.length > 0) {
+    item.append(renderImages(post.imageKeys));
+  }
+  
   item.append(title, meta, content);
 
   if (user && user.id === post.authorId) {
