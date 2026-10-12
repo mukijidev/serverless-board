@@ -26,6 +26,12 @@ import software.amazon.awscdk.services.cognito.SignInAliases;
 import software.amazon.awscdk.services.cognito.UserPool;
 import software.amazon.awscdk.services.cognito.UserPoolClient;
 import software.amazon.awscdk.services.cognito.UserPoolClientOptions;
+import software.amazon.awscdk.services.apigateway.Cors;
+import software.amazon.awscdk.services.apigateway.CorsOptions;
+import software.amazon.awscdk.services.apigateway.GatewayResponseOptions;
+import software.amazon.awscdk.services.apigateway.ResponseType;
+import software.amazon.awscdk.services.s3.CorsRule;
+import software.amazon.awscdk.services.s3.HttpMethods;
 
 import java.util.List;
 
@@ -42,6 +48,12 @@ public class ServerlessBoardStack extends Stack {
                 .removalPolicy(RemovalPolicy.DESTROY)
                 .autoDeleteObjects(true)
                 .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
+                .cors(List.of(CorsRule.builder()
+                        .allowedMethods(List.of(HttpMethods.PUT))
+                        .allowedOrigins(List.of("*"))
+                        .allowedHeaders(List.of("Content-Type"))
+                        .maxAge(3000)
+                        .build()))
                 .build();
 
         // dynamodb
@@ -111,7 +123,26 @@ public class ServerlessBoardStack extends Stack {
                         .throttlingRateLimit(5)
                         .throttlingBurstLimit(10)
                         .build())
+                .defaultCorsPreflightOptions(CorsOptions.builder()
+                        .allowOrigins(Cors.ALL_ORIGINS)
+                        .allowMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"))
+                        .allowHeaders(List.of("Content-Type", "Authorization"))
+                        .maxAge((Duration.hours(1)))
+                        .build())
                 .build();
+
+        final Map<String, String> corsHeaders = Map.of(
+                "Access-Control-Allow-Origin", "'*'",
+                "Access-Control-Allow-Headers", "'Content-Type,Authorization'");
+
+        api.addGatewayResponse("Default4xx", GatewayResponseOptions.builder()
+                .type(ResponseType.DEFAULT_4_XX)
+                .responseHeaders(corsHeaders)
+                .build());
+        api.addGatewayResponse("Default5xx", GatewayResponseOptions.builder()
+                .type(ResponseType.DEFAULT_5_XX)
+                .responseHeaders(corsHeaders)
+                .build());
 
         final CognitoUserPoolsAuthorizer authorizer = CognitoUserPoolsAuthorizer.Builder
                 .create(this, "BoardAuthorizer")

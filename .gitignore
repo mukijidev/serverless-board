@@ -11,3 +11,4 @@ target
 .cdk.staging
 cdk.out
 
+frontend/config.json
