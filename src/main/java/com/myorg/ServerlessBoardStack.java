@@ -32,6 +32,14 @@ import software.amazon.awscdk.services.apigateway.GatewayResponseOptions;
 import software.amazon.awscdk.services.apigateway.ResponseType;
 import software.amazon.awscdk.services.s3.CorsRule;
 import software.amazon.awscdk.services.s3.HttpMethods;
+import software.amazon.awscdk.services.cloudfront.BehaviorOptions;
+import software.amazon.awscdk.services.cloudfront.Distribution;
+import software.amazon.awscdk.services.cloudfront.PriceClass;
+import software.amazon.awscdk.services.cloudfront.ViewerProtocolPolicy;
+import software.amazon.awscdk.services.cloudfront.origins.S3BucketOrigin;
+import software.amazon.awscdk.services.s3.assets.AssetOptions;
+import software.amazon.awscdk.services.s3.deployment.BucketDeployment;
+import software.amazon.awscdk.services.s3.deployment.Source;
 
 import java.util.List;
 
@@ -171,11 +179,52 @@ public class ServerlessBoardStack extends Stack {
                 .description("Base URL of the board  API")
                 .build();
 
+        // site hosting, private bucket + cloudFront(OAC)
+        final Bucket siteBucket = Bucket.Builder.create(this, "SiteBucket")
+                .removalPolicy(RemovalPolicy.DESTROY)
+                .autoDeleteObjects(true)
+                .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
+                .build();
+
+        final Distribution distribution  = Distribution.Builder.create(this, "SiteDistribution")
+                .defaultRootObject("index.html")
+                .priceClass(PriceClass.PRICE_CLASS_100)
+                .defaultBehavior(BehaviorOptions.builder()
+                        .origin(S3BucketOrigin.withOriginAccessControl(siteBucket))
+                        .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS).build())
+                .additionalBehaviors(Map.of("uploads/*", BehaviorOptions.builder()
+                        .origin(S3BucketOrigin.withOriginAccessControl(bucket))
+                        .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS).build()))
+                .build();
+
+
+        final LogGroup deploymentLogs = LogGroup.Builder.create(this, "SiteDeploymentLogs")
+                .retention(RetentionDays.ONE_WEEK)
+                .removalPolicy(RemovalPolicy.DESTROY)
+                .build();
+
+        BucketDeployment.Builder.create(this, "SiteDeployment")
+                        .destinationBucket(siteBucket)
+                                .sources(List.of(
+                                        Source.asset("frontend", AssetOptions.builder()
+                                                .exclude(List.of("config.json"))
+                                                .build()),
+                                        Source.jsonData("config.json", Map.of(
+                                                "apiBaseUrl", api.getUrl(),
+                                                "region", this.getRegion(),
+                                                "clientId", userPoolClient.getUserPoolClientId()))))
+                                        .distribution(distribution)
+                                        .distributionPaths(List.of("/*"))
+                                        .logGroup(deploymentLogs)
+                                        .build();
 
 
 
 
-
+        CfnOutput.Builder.create(this, "SiteUrl")
+                .value("https://" + distribution.getDistributionDomainName())
+                .description("Public URL of the board site")
+                .build();
     }
 
     private Function createBoardFunction(String id, String handler, Map<String, String> environment) {
