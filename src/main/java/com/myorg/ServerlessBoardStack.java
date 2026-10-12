@@ -40,10 +40,13 @@ import software.amazon.awscdk.services.cloudfront.origins.S3BucketOrigin;
 import software.amazon.awscdk.services.s3.assets.AssetOptions;
 import software.amazon.awscdk.services.s3.deployment.BucketDeployment;
 import software.amazon.awscdk.services.s3.deployment.Source;
-
+import java.util.HashMap;
 import java.util.List;
+import java.util.TreeMap;
 
 public class ServerlessBoardStack extends Stack {
+    private final String siteOrigin;
+
     public ServerlessBoardStack(final Construct scope, final String id) {
         this(scope, id, null);
     }
@@ -58,11 +61,32 @@ public class ServerlessBoardStack extends Stack {
                 .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
                 .cors(List.of(CorsRule.builder()
                         .allowedMethods(List.of(HttpMethods.PUT))
-                        .allowedOrigins(List.of("*"))
+                        .allowedOrigins(List.of("https://*.cloudfront.net"))
                         .allowedHeaders(List.of("Content-Type"))
                         .maxAge(3000)
                         .build()))
                 .build();
+
+        // site hosting, private bucket + cloudFront(OAC)
+        final Bucket siteBucket = Bucket.Builder.create(this, "SiteBucket")
+                .removalPolicy(RemovalPolicy.DESTROY)
+                .autoDeleteObjects(true)
+                .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
+                .build();
+
+        final Distribution distribution  = Distribution.Builder.create(this, "SiteDistribution")
+                .defaultRootObject("index.html")
+                .priceClass(PriceClass.PRICE_CLASS_100)
+                .defaultBehavior(BehaviorOptions.builder()
+                        .origin(S3BucketOrigin.withOriginAccessControl(siteBucket))
+                        .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS).build())
+                .additionalBehaviors(Map.of("uploads/*", BehaviorOptions.builder()
+                        .origin(S3BucketOrigin.withOriginAccessControl(bucket))
+                        .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS).build()))
+                .build();
+
+        this.siteOrigin = "https://" + distribution.getDistributionDomainName();
+
 
         // dynamodb
         final Table table = Table.Builder.create(this, "BoardTable")
@@ -132,16 +156,16 @@ public class ServerlessBoardStack extends Stack {
                         .throttlingBurstLimit(10)
                         .build())
                 .defaultCorsPreflightOptions(CorsOptions.builder()
-                        .allowOrigins(Cors.ALL_ORIGINS)
+                        .allowOrigins(List.of(siteOrigin))
                         .allowMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"))
                         .allowHeaders(List.of("Content-Type", "Authorization"))
                         .maxAge((Duration.hours(1)))
                         .build())
                 .build();
 
-        final Map<String, String> corsHeaders = Map.of(
-                "Access-Control-Allow-Origin", "'*'",
-                "Access-Control-Allow-Headers", "'Content-Type,Authorization'");
+        final Map<String, String> corsHeaders = new TreeMap<>(Map.of(
+                "Access-Control-Allow-Origin", "'" + siteOrigin + "'",
+                "Access-Control-Allow-Headers", "'Content-Type,Authorization'"));
 
         api.addGatewayResponse("Default4xx", GatewayResponseOptions.builder()
                 .type(ResponseType.DEFAULT_4_XX)
@@ -179,23 +203,7 @@ public class ServerlessBoardStack extends Stack {
                 .description("Base URL of the board  API")
                 .build();
 
-        // site hosting, private bucket + cloudFront(OAC)
-        final Bucket siteBucket = Bucket.Builder.create(this, "SiteBucket")
-                .removalPolicy(RemovalPolicy.DESTROY)
-                .autoDeleteObjects(true)
-                .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
-                .build();
 
-        final Distribution distribution  = Distribution.Builder.create(this, "SiteDistribution")
-                .defaultRootObject("index.html")
-                .priceClass(PriceClass.PRICE_CLASS_100)
-                .defaultBehavior(BehaviorOptions.builder()
-                        .origin(S3BucketOrigin.withOriginAccessControl(siteBucket))
-                        .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS).build())
-                .additionalBehaviors(Map.of("uploads/*", BehaviorOptions.builder()
-                        .origin(S3BucketOrigin.withOriginAccessControl(bucket))
-                        .viewerProtocolPolicy(ViewerProtocolPolicy.REDIRECT_TO_HTTPS).build()))
-                .build();
 
 
         final LogGroup deploymentLogs = LogGroup.Builder.create(this, "SiteDeploymentLogs")
@@ -209,10 +217,10 @@ public class ServerlessBoardStack extends Stack {
                                         Source.asset("frontend", AssetOptions.builder()
                                                 .exclude(List.of("config.json"))
                                                 .build()),
-                                        Source.jsonData("config.json", Map.of(
+                                        Source.jsonData("config.json", new TreeMap<>(Map.of(
                                                 "apiBaseUrl", api.getUrl(),
                                                 "region", this.getRegion(),
-                                                "clientId", userPoolClient.getUserPoolClientId()))))
+                                                "clientId", userPoolClient.getUserPoolClientId())))))
                                         .distribution(distribution)
                                         .distributionPaths(List.of("/*"))
                                         .logGroup(deploymentLogs)
@@ -222,12 +230,15 @@ public class ServerlessBoardStack extends Stack {
 
 
         CfnOutput.Builder.create(this, "SiteUrl")
-                .value("https://" + distribution.getDistributionDomainName())
+                .value(siteOrigin)
                 .description("Public URL of the board site")
                 .build();
     }
 
     private Function createBoardFunction(String id, String handler, Map<String, String> environment) {
+        final Map<String, String> env = new HashMap<>(environment);
+        env.put("ALLOWED_ORIGIN", siteOrigin);
+
         final LogGroup logs = LogGroup.Builder.create(this, id + "Logs")
                 .retention(RetentionDays.ONE_WEEK)
                 .removalPolicy(RemovalPolicy.DESTROY)
@@ -240,7 +251,7 @@ public class ServerlessBoardStack extends Stack {
                 .memorySize(512)
                 .timeout(Duration.seconds(15))
                 .logGroup(logs)
-                .environment(environment)
+                .environment(env)
                 .build();
     }
 }
