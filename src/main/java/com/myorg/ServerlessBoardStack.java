@@ -140,11 +140,27 @@ public class ServerlessBoardStack extends Stack {
         table.grant(updatePostFn, "dynamodb:UpdateItem");
         table.grant(deletePostFn, "dynamodb:DeleteItem");
 
+        final Function createCommentFn = createBoardFunction(
+                "CreateCommentFunction", "com.myorg.board.comment.CreateCommentHandler::handleRequest",
+                Map.of("TABLE_NAME", table.getTableName()));
+        final Function listCommentsFn = createBoardFunction(
+                "ListCommentsFunction", "com.myorg.board.comment.ListCommentsHandler::handleRequest",
+                Map.of("TABLE_NAME", table.getTableName()));
+        final Function deleteCommentFn = createBoardFunction(
+                "DeleteCommentFunction", "com.myorg.board.comment.DeleteCommentHandler::handleRequest",
+                Map.of("TABLE_NAME", table.getTableName()));
+
+        table.grant(createCommentFn, "dynamodb:PutItem", "dynamodb:UpdateItem");
+        table.grant(listCommentsFn, "dynamodb:Query");
+        table.grant(deleteCommentFn, "dynamodb:DeleteItem", "dynamodb:UpdateItem");
+
         final Function presignedUrlFn = createBoardFunction(
                 "PresignedUrlFunction",  "com.myorg.board.upload.PresignedUrlHandler::handleRequest",
                 Map.of("BUCKET_NAME", bucket.getBucketName()));
 
         bucket.grantPut(presignedUrlFn, "uploads/*");
+
+
 
 
         final RestApi api = RestApi.Builder.create(this, "BoardApi")
@@ -197,6 +213,14 @@ public class ServerlessBoardStack extends Stack {
         final Resource postById = posts.addResource("{postId}");
         postById.addMethod("PUT", new LambdaIntegration(updatePostFn), authRequired);
         postById.addMethod("DELETE", new LambdaIntegration(deletePostFn), authRequired);
+
+        final Resource comments = postById.addResource("comments");
+        comments.addMethod("GET", new LambdaIntegration(listCommentsFn));
+        comments.addMethod("POST", new LambdaIntegration(createCommentFn), authRequired);
+
+
+        final Resource commentById = comments.addResource("{commentId}");
+        commentById.addMethod("DELETE", new LambdaIntegration(deleteCommentFn), authRequired);
 
         CfnOutput.Builder.create(this, "ApiUrl")
                 .value((api.getUrl()))
