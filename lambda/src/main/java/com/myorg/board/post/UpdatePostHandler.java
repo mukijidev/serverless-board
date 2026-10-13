@@ -7,6 +7,7 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.myorg.board.common.ApiResponses;
 import com.myorg.board.common.Auth;
+import com.myorg.board.common.Result;
 
 public class UpdatePostHandler implements RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
 

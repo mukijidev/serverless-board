@@ -20,6 +20,7 @@ public class Post {
     private String authorId;
     private String createdAt;
     private List<String> imageKeys;
+    private Integer commentCount;
 
     @DynamoDbPartitionKey
     @DynamoDbAttribute("pk")
@@ -59,4 +60,7 @@ public class Post {
     public List<String> getImageKeys() { return imageKeys; }
 
     public void setImageKeys(List<String> imageKeys) {this.imageKeys = imageKeys;}
+
+    public Integer getCommentCount() {return commentCount;}
+    public void setCommentCount(Integer commentCount) {this.commentCount = commentCount;}
 }

@@ -7,6 +7,7 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.myorg.board.common.ApiResponses;
 import com.myorg.board.common.Auth;
+import com.myorg.board.common.Result;
 
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -73,6 +74,7 @@ public class CreatePostHandler
         post.setAuthorId(userId);
         post.setCreatedAt(createdAt);
         post.setImageKeys(imageKeys);
+        post.setCommentCount(0);
 
         try {
             Result<Post> result = repository.save(post);

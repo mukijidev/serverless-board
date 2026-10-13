@@ -2,6 +2,8 @@ package com.myorg.board.post;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import com.myorg.board.common.Result;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbIndex;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;

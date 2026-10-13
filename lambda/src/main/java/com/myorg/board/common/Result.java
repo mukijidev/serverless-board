@@ -1,4 +1,4 @@
-package com.myorg.board.post;
+package com.myorg.board.common;
 
 public record Result<T>(Outcome outcome, T value) {
 
