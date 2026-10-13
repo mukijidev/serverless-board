@@ -1,6 +1,8 @@
 package com.myorg.board.comment;
 
 import com.myorg.board.common.Result;
+
+import java.io.Writer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -22,11 +24,18 @@ import software.amazon.awssdk.services.dynamodb.model.TransactWriteItem;
 import software.amazon.awssdk.services.dynamodb.model.TransactWriteItemsRequest;
 import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException;
 import software.amazon.awssdk.services.dynamodb.model.Update;
+import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.BatchWriteItemResponse;
+import software.amazon.awssdk.services.dynamodb.model.DeleteRequest;
+import software.amazon.awssdk.services.dynamodb.model.WriteRequest;
+
 
 public class CommentRepository {
     private static final String META = "META";
-    private static final String COMMENT_PREFIX = "COMMNET#";
+    private static final String COMMENT_PREFIX = "COMMENT#";
     private static final String CONDITION_FAILED = "ConditionalCheckFailed";
+    private static final int BATCH_SIZE = 25; // at most 25 requests per call
+    private static final int MAX_ATTEMPTS = 5;
 
     private final String tableName;
     private final DynamoDbClient client;
@@ -133,6 +142,65 @@ public class CommentRepository {
                         .build())
                 .build();
 
+    }
+
+    public void deleteAllForPost(String postId) {
+        QueryEnhancedRequest request  = QueryEnhancedRequest.builder()
+                .queryConditional(QueryConditional.sortBeginsWith(Key.builder()
+                        .partitionValue(partitionKey(postId))
+                        .sortValue(COMMENT_PREFIX)
+                        .build()))
+                .consistentRead(true)
+                .attributesToProject("pk", "sk")
+                .build();
+
+        List<WriteRequest> batch = new ArrayList<>();
+        for (Page<Comment> page : table.query(request)) {
+            for (Comment comment : page.items()) {
+                batch.add(WriteRequest.builder()
+                        .deleteRequest(DeleteRequest.builder()
+                                .key(Map.of(
+                                        "pk", AttributeValue.fromS(comment.getPk()),
+                                        "sk", AttributeValue.fromS(comment.getSk())))
+                                .build())
+                        .build());
+                    if(batch.size() == BATCH_SIZE) {
+                        deleteBatch(batch);
+                        batch.clear();
+                    }
+            }
+        }
+        if(!batch.isEmpty()) {
+            deleteBatch(batch);
+        }
+    }
+
+    private void deleteBatch(List<WriteRequest> requests) {
+        Map<String, List<WriteRequest>> pending = Map.of(tableName, List.copyOf(requests));
+        for(int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+            if(attempt > 0) {
+                backoff(attempt);
+            }
+            BatchWriteItemResponse response = client.batchWriteItem(
+                    BatchWriteItemRequest.builder().requestItems(pending).build()
+            );
+            pending = response.unprocessedItems();
+            if(pending.isEmpty()) {
+                return;
+            }
+        }
+        throw new IllegalStateException("some comments could not be deleted");
+    }
+
+
+
+    private static void backoff(int attempt) {
+        try {
+            Thread.sleep(50L << attempt);
+        } catch (InterruptedException e ){
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while retrying", e);
+        }
     }
 
 

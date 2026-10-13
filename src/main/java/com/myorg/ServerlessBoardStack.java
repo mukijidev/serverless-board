@@ -138,7 +138,7 @@ public class ServerlessBoardStack extends Stack {
                 Map.of("TABLE_NAME", table.getTableName()));
 
         table.grant(updatePostFn, "dynamodb:UpdateItem");
-        table.grant(deletePostFn, "dynamodb:DeleteItem");
+        table.grant(deletePostFn, "dynamodb:DeleteItem", "dynamodb:Query", "dynamodb:BatchWriteItem");
 
         final Function createCommentFn = createBoardFunction(
                 "CreateCommentFunction", "com.myorg.board.comment.CreateCommentHandler::handleRequest",
@@ -201,7 +201,6 @@ public class ServerlessBoardStack extends Stack {
                 .authorizer(authorizer)
                 .authorizationType(AuthorizationType.COGNITO)
                 .build();
-
 
         final Resource posts = api.getRoot().addResource("posts");
         posts.addMethod("GET", new LambdaIntegration(listPostsFn));

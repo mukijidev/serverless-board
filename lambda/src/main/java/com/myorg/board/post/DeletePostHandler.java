@@ -6,10 +6,13 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
 import com.myorg.board.common.ApiResponses;
 import com.myorg.board.common.Auth;
+import com.myorg.board.comment.CommentRepository;
+import com.myorg.board.common.Result;
 
 public class DeletePostHandler implements  RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
 
     private final PostRepository repository = new PostRepository(System.getenv("TABLE_NAME"));
+    private final CommentRepository commentRepository = new CommentRepository(System.getenv("TABLE_NAME"));
 
     @Override
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent event, Context context) {
@@ -25,14 +28,29 @@ public class DeletePostHandler implements  RequestHandler<APIGatewayProxyRequest
         }
 
         try {
-            return switch (repository.delete(postId, userId).outcome()) {
+            Result<Void> result = repository.delete(postId, userId);
+            Result.Outcome outcome = result.outcome();
+
+            if(outcome == Result.Outcome.OK) {
+                deleteComments(postId, context);
+            }
+
+            return switch (outcome ) {
                 case OK -> ApiResponses.noContent();
                 case NOT_FOUND -> ApiResponses.error(404, "Post not found");
-                case FORBIDDEN -> ApiResponses.error(403, "You are not the author of this post");
+                case FORBIDDEN -> ApiResponses.error(403, "not the author of post");
             };
         } catch (RuntimeException e) {
             context.getLogger().log("Failed to delete post: " + e);
             return ApiResponses.error(500, "Internal server error");
+        }
+    }
+
+    private void deleteComments(String postId, Context context) {
+        try {
+            commentRepository.deleteAllForPost(postId);
+        } catch(RuntimeException e) {
+            context.getLogger().log("Failed to delete comments of post " + postId + ":" + e);
         }
     }
 
