@@ -184,3 +184,40 @@ button.danger {
   width: 100%;
   margin-bottom: 8px;
 }
+
+
+.post > button {
+  margin-top: 8px;
+}
+
+.comments {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.comment-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.comment-text {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.comment-meta,
+.comment-empty {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.comment button {
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 0.8rem;
+}

@@ -221,8 +221,84 @@ function renderPost(post, user) {
     item.append(actions);
   }
 
+    const toggle = actionButton(
+    `Comments (${post.commentCount ?? 0})`,
+    "toggle-comments",
+    post.postId,
+    "secondary",
+  );
+  const panel = document.createElement("div");
+  panel.className = "comments";
+  panel.hidden = true;
+  const commentList = document.createElement("ul");
+  commentList.className = "comment-list";
+  panel.append(commentList);
+
+  if (user) {
+    panel.append(renderCommentForm(post.postId));
+  }
+  item.append(toggle, panel);
+
   return item;
 }
+
+function renderComments(panel, postId, comments, user) {
+  const list = panel.querySelector(".comment-list");
+  list.replaceChildren();
+
+  if (comments.length === 0) {
+    const empty = document.createElement("li");
+    empty.className = "comment-empty";
+    empty.textContent = "No comments yet.";
+    list.append(empty);
+    return;
+  }
+
+  for (const comment of comments) {
+    list.append(renderComment(comment, postId, user));
+  }
+}
+
+function renderComment(comment, postId, user) {
+  const item = document.createElement("li");
+  item.className = "comment";
+
+  const text = document.createElement("p");
+  text.className = "comment-text";
+  text.textContent = comment.content;
+
+  const meta = document.createElement("span");
+  meta.className = "comment-meta";
+  meta.textContent = new Date(comment.createdAt).toLocaleString();
+
+  item.append(text, meta);
+
+  if (user && user.id === comment.authorId) {
+    const remove = actionButton("Delete", "delete-comment", postId, "danger");
+    remove.dataset.commentId = comment.commentId;
+    item.append(remove);
+  }
+
+  return item;
+}
+
+const MAX_COMMENT_LENGTH = 500;
+
+function renderCommentForm(postId) {
+  const form = document.createElement("div");
+  form.className = "comment-form";
+
+  const input = document.createElement("textarea");
+  input.className = "comment-input";
+  input.maxLength = MAX_COMMENT_LENGTH;
+  input.rows = 2;
+  input.placeholder = "Write a comment";
+
+  form.append(input, actionButton("Add comment", "add-comment", postId, ""));
+  return form;
+}
+
+
 
 function actionButton(label, action, posotId, extraClass) {
   const button = document.createElement("button");
@@ -248,6 +324,27 @@ async function deletePost(postId) {
     auth: true,
   });
 }
+
+async function getComments(postId) {
+  return apiRequest(`posts/${encodeURIComponent(postId)}/comments`);
+}
+
+async function addComment(postId, content) {
+  return apiRequest(`posts/${encodeURIComponent(postId)}/comments`, {
+    method: "POST",
+    auth: true,
+    body: { content },
+  });
+}
+
+async function deleteComment(postId, commentId) {
+  return apiRequest(
+    `posts/${encodeURIComponent(postId)}/comments/${encodeURIComponent(commentId)}`,
+    { method: "DELETE", auth: true },
+  );
+}
+
+
 
 function startEdit(item, postId) {
   const titleElement = item.querySelector(".post-title");
@@ -305,6 +402,73 @@ async function handleDelete(postId, button) {
     button.disabled = false;
   }
 }
+
+async function refreshComments(item, postId) {
+  const panel = item.querySelector(".comments");
+  const comments = await getComments(postId);
+  renderComments(panel, postId, comments, currentUser());
+  item.querySelector("button[data-action='toggle-comments']").textContent = `Comments (${comments.length})`;
+}
+
+
+async function toggleComments(item, postId, button) {
+  const panel = item.querySelector(".comments");
+  if (!panel.hidden) {
+    panel.hidden = true;
+    return;
+  }
+
+  button.disabled = true;
+  try {
+    await refreshComments(item, postId);
+    panel.hidden = false;
+
+  } catch(error) {
+    showMessage(error.message, "error");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function handleAddComment(item, postId, button) {
+  const input = item.querySelector(".comment-input");
+  const content = input.value.trim();
+  if (!content) {
+    showMessage("Comment must not be empty.", "error");
+    return;
+  }
+
+  button.disabled = true;
+  try {
+    await addComment(postId, content);
+    input.value = "";
+    await refreshComments(item, postId);
+    showMessage("Comment added.", "success");
+  } catch (error) {
+    showMessage(error.message, "error");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function handleDeleteComment(item, postId, commentId, button) {
+  if (!confirm("Delete this comment?")) {
+    return;
+
+  }
+
+  button.disabled = true;
+  try {
+    await deleteComment(postId, commentId);
+    await refreshComments(item, postId);
+    showMessage("Comment deleted.", "success");
+  } catch (error) {
+    showMessage(error.message, "error");
+    button.disabled = false;
+  }
+}
+
+
 
 const MAX_IMAGES = 5;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -474,7 +638,7 @@ function bindEvents() {
     if (!button) {
       return;
     }
-    const { action, postId } = button.dataset;
+    const { action, postId, commentId } = button.dataset;
     const item = button.closest(".post");
 
     if (action === "edit") {
@@ -485,7 +649,15 @@ function bindEvents() {
       await loadPosts();
     } else if (action === "delete") {
       await handleDelete(postId, button);
+    } else if (action === "toggle-comments") {
+      await toggleComments(item, postId, button);
+    } else if (action === "add-comment") {
+      await handleAddComment(item, postId, button);
+    } else if (action === "delete-comment") {
+      await handleDeleteComment(item, postId, commentId, button);
     }
+
+
   });
 
   el("logout-button").addEventListener("click", () => {
