@@ -198,7 +198,17 @@ function renderPost(post, user) {
   row.dataset.action = "toggle-detail";
   row.dataset.postId = post.postId;
   row.dataset.title = post.title;
-  row.textContent = `${post.title} [${post.commentCount ?? 0}]`;
+  
+  const rowTitle = document.createElement("span");
+  rowTitle.className = "row-title";
+  rowTitle.textContent = `${post.title} [${post.commentCount ?? 0}]`;
+
+  const rowMeta = document.createElement("span");
+  rowMeta.className = "row-meta";
+  rowMeta.textContent = post.createdAt ? new Date(post.createdAt).toLocaleDateString() : "";
+
+  row.append(rowTitle, rowMeta);
+  
 
   //hidden until the row is clicked
   const detail = document.createElement("div");

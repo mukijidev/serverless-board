@@ -219,11 +219,24 @@ button.danger {
 }
 
 .post-row {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   width: 100%;
   padding: 10px 0;
   background: none;
   color: var(--text);
   font-weight: 600;
   text-align: left;
+}
+
+.row-title {
+  flex: 1;
+}
+
+.row-meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 400;
+  white-space: nowrap;
 }
