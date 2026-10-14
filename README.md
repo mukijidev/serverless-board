@@ -1,18 +1,45 @@
-# Welcome to your CDK Java project!
+# Serverless Board
 
-This is a blank project for CDK development with Java.
+A bulletin board (posts, image attachments, comments) built **only with serverless AWS services** and defined as code with the **AWS CDK (Java)**. A practice and portfolio project.
 
-The `cdk.json` file tells the CDK Toolkit how to execute your app.
+## Architecture
 
-It is a [Maven](https://maven.apache.org/) based project, so you can open this project with any Maven compatible Java IDE to build and run tests.
+```mermaid
+flowchart LR
+    Browser([Browser])
+    Browser -- "HTML / JS / CSS, images" --> CF[CloudFront]
+    CF -- "OAC" --> Site[(S3 site bucket)]
+    CF -- "OAC, /uploads/*" --> Img[(S3 image bucket)]
+    Browser -- "sign up / log in" --> Cognito[Cognito user pool]
+    Browser -- "REST + ID token" --> APIGW[API Gateway]
+    APIGW -. "Cognito authorizer" .-> Cognito
+    APIGW --> Lambda[Lambda, Java 21]
+    Lambda --> DDB[(DynamoDB)]
+    Browser -- "PUT via presigned URL" --> Img
+```
 
-## Useful commands
+| Service | Role |
+|---|---|
+| **CDK (Java)** | Infrastructure as code (one stack) |
+| **Lambda** | Post and comment CRUD, presigned URL |
+| **API Gateway** | REST API with a Cognito authorizer |
+| **DynamoDB** | Posts and comments in one table |
+| **Cognito** | Sign-up and login (JWT) |
+| **S3** | Two private buckets: static site and uploaded images |
+| **CloudFront** | Serves the site and images (Origin Access Control) |
+| **IAM** | Least-privilege role per function |
 
- * `mvn package`     compile and run tests
- * `cdk ls`          list all stacks in the app
- * `cdk synth`       emits the synthesized CloudFormation template
- * `cdk deploy`      deploy this stack to your default AWS account/region
- * `cdk diff`        compare deployed stack with current state
- * `cdk docs`        open CDK documentation
+## API
 
-Enjoy!
+Reads are public; writes need a Cognito ID token and, for edits and deletes, ownership.
+
+| Method | Path | Auth |
+|---|---|---|
+| `GET` | `/posts` | public |
+| `POST` | `/posts` | token |
+| `PUT` | `/posts/{postId}` | token, owner |
+| `DELETE` | `/posts/{postId}` | token, owner |
+| `POST` | `/uploads` | token |
+| `GET` | `/posts/{postId}/comments` | public |
+| `POST` | `/posts/{postId}/comments` | token |
+| `DELETE` | `/posts/{postId}/comments/{commentId}` | token, owner |
