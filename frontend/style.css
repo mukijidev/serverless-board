@@ -261,3 +261,28 @@ button.danger {
 .row-thumb:empty {
   background: #e5e7eb url("no-image.svg") center / 60% no-repeat;
 }
+
+#image-previews {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+#image-previews img {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 3px solid transparent;
+  cursor: pointer;
+}
+
+#image-previews img.selected {
+  border-color: var(--accent);
+}
+
+.hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}

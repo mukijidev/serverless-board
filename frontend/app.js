@@ -202,10 +202,10 @@ function renderPost(post, user) {
   const thumb = document.createElement("span");
   thumb.className = "row-thumb";
 
-  const firstImage = post.imageKeys?.[0];
-  if (firstImage) {
+  const thumbnailKey = post.thumbnailKey ?? post.imageKeys?.[0];
+  if (thumbnailKey) {
     const image = document.createElement("img");
-    image.src = `/${firstImage}`;
+    image.src = `/${thumbnailKey}`;
     image.alt = "";
     image.loading = "lazy";
     thumb.append(image);
@@ -547,14 +547,16 @@ async function uploadImages(files) {
   return keys;
 }
 
-async function createPost(title, content, files) {
+async function createPost(title, content, files, thumbnailIndex) {
   const imageKeys = files.length > 0 ? await uploadImages(files) : [];
+  const thumbnailKey = imageKeys[thumbnailIndex] ?? null;
   return apiRequest("posts", {
     method: "POST",
     auth: true,
-    body: { title, content, imageKeys },
+    body: {title, content, imageKeys, thumbnailKey},
   });
 }
+
 
 // ---------- Events ----------
 let pendingEmail = null;
@@ -568,6 +570,26 @@ function setBusy(form, busy) {
 function showConfirmForm(email) {
   pendingEmail = email;
   el("confirm-form").hidden = false;
+}
+
+let thumbnailIndex = 0;
+
+
+function renderPreviews() {
+  const container = el("image-previews");
+  container.replaceChildren();
+
+  const files = Array.from(el("post-images").files);
+  el("preview-hint").hidden = files.length === 0;
+
+  files.forEach((file, index) => {
+    const image = document.createElement("img");
+    image.src = URL.createObjectURL(file);
+    image.alt = file.name;
+    image.dataset.index = index;
+    image.classList.toggle("selected", index === thumbnailIndex);
+    container.append(image);
+  });
 }
 
 function bindEvents() {
@@ -642,6 +664,23 @@ function bindEvents() {
     }
   });
 
+  el("post-images").addEventListener("change", () => {
+    thumbnailIndex = 0;
+    renderPreviews();
+  });
+
+  el("image-previews").addEventListener("click", (event) => {
+    const image = event.target.closest("img[data-index]");
+    if(!image) {
+      return;
+    }
+
+    thumbnailIndex = Number(image.dataset.index);
+    el("image-previews").querySelectorAll("img").forEach((preview) => {
+      preview.classList.toggle("selected", preview === image);
+    });
+  });
+
   el("post-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -659,8 +698,10 @@ function bindEvents() {
         el("post-title").value.trim(),
         el("post-content").value.trim(),
         files,
+        thumbnailIndex,
       );
       form.reset();
+      renderPreviews();
       showMessage("Post created.", "success");
       await loadPosts();
     } catch (error) {
