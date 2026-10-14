@@ -187,6 +187,39 @@ function renderImages(imageKeys) {
   return wrapper;
 }
 
+function renderContent(text, imageKeys) {
+  const container = document.createElement("div");
+  container.className = "post-content";
+  container.dataset.raw = text;
+
+  const used = new Set();
+  const parts = text.split(/\[\[image:(\d+)\]\]/);
+
+  parts.forEach((part, i) => {
+    if(i%2 === 0) {
+      container.append(part);
+      return;
+    }
+
+    const number = Number(part);
+    const key = imageKeys[number - 1];
+    if(!key) {
+      container.append(imageMarker(number));
+      return;
+    }
+
+    const image = document.createElement("img");
+    image.className = "inline-image";
+    image.src = `/${key}`;
+    image.alt = "Attached image";
+    image.loading = "lazy";
+    container.append(image);
+    used.add(number - 1);
+  });
+
+  return {container, used};
+}
+
 function renderPost(post, user) {
   const item = document.createElement("li");
   item.className = "post";
@@ -233,14 +266,14 @@ function renderPost(post, user) {
   meta.className = "post-meta";
   meta.textContent = post.createdAt ? new Date(post.createdAt).toLocaleString() : "";
 
-  const content = document.createElement("p");
-  content.className = "post-content";
-  content.textContent = post.content;
+  const imageKeys = post.imageKeys ?? [];
+  const { container : content, used } = renderContent(post.content, imageKeys);
 
   detail.append(meta, content);
 
-  if (post.imageKeys && post.imageKeys.length > 0) {
-    detail.append(renderImages(post.imageKeys));
+  const unusedKeys = imageKeys.filter((key, index) => !used.has(index));
+  if(unusedKeys.length > 0) {
+    detail.append(renderImages(unusedKeys));
   }
 
   if (user && user.id === post.authorId) {
@@ -395,7 +428,7 @@ function startEdit(item, postId) {
 
   const contentInput = document.createElement("textarea");
   contentInput.className = "edit-content";
-  contentInput.value = contentElement.textContent;
+  contentInput.value = contentElement.dataset.raw;
 
   detail.prepend(titleInput);
   contentElement.replaceWith(contentInput);
@@ -574,6 +607,18 @@ function showConfirmForm(email) {
 
 let thumbnailIndex = 0;
 
+function imageMarker(number) {
+  return `[[image:${number}]]`;
+}
+
+function updateInsertButtons() {
+  const text = el("post-content").value;
+  el("insert-buttons").querySelectorAll("button").forEach((button) => {
+    const marker = imageMarker(Number(button.dataset.index) + 1);
+    button.disabled = text.includes(marker);
+  });
+}
+
 
 function renderPreviews() {
   const container = el("image-previews");
@@ -582,6 +627,9 @@ function renderPreviews() {
   const files = Array.from(el("post-images").files);
   el("preview-hint").hidden = files.length === 0;
 
+  const insertButtons = el("insert-buttons");
+  insertButtons.replaceChildren();
+  
   files.forEach((file, index) => {
     const image = document.createElement("img");
     image.src = URL.createObjectURL(file);
@@ -589,7 +637,16 @@ function renderPreviews() {
     image.dataset.index = index;
     image.classList.toggle("selected", index === thumbnailIndex);
     container.append(image);
+
+    const insertButton = document.createElement("button");
+    insertButton.type = "button";
+    insertButton.className = "secondary";
+    insertButton.textContent = `Insert image ${index + 1}`;
+    insertButton.dataset.index = index;
+    insertButtons.append(insertButton);
   });
+
+  updateInsertButtons();
 }
 
 function bindEvents() {
@@ -669,6 +726,8 @@ function bindEvents() {
     renderPreviews();
   });
 
+  el("post-content").addEventListener("input", updateInsertButtons);
+
   el("image-previews").addEventListener("click", (event) => {
     const image = event.target.closest("img[data-index]");
     if(!image) {
@@ -680,6 +739,21 @@ function bindEvents() {
       preview.classList.toggle("selected", preview === image);
     });
   });
+
+  el("insert-buttons").addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-index]");
+    if (!button) {
+      return;
+    }
+
+    const textarea = el("post-content");
+    const marker = imageMarker(Number(button.dataset.index) + 1);
+    textarea.setRangeText(marker, textarea.selectionStart, textarea.selectionEnd, "end");
+    textarea.focus();
+    updateInsertButtons();
+  });
+
+
 
   el("post-form").addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -708,6 +782,7 @@ function bindEvents() {
       showMessage(error.message, "error");
     } finally {
       setBusy(form, false);
+      updateInsertButtons();
     }
   });
 
