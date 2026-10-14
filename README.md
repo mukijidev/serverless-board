@@ -7,15 +7,15 @@ A bulletin board (posts, image attachments, comments) built **only with serverle
 ```mermaid
 flowchart LR
     Browser([Browser])
+    Browser -- "PUT via presigned URL" --> Img[(S3 image bucket)]
     Browser -- "HTML / JS / CSS, images" --> CF[CloudFront]
+    CF -- "OAC, /uploads/*" --> Img
     CF -- "OAC" --> Site[(S3 site bucket)]
-    CF -- "OAC, /uploads/*" --> Img[(S3 image bucket)]
-    Browser -- "sign up / log in" --> Cognito[Cognito user pool]
     Browser -- "REST + ID token" --> APIGW[API Gateway]
-    APIGW -. "Cognito authorizer" .-> Cognito
     APIGW --> Lambda[Lambda, Java 21]
     Lambda --> DDB[(DynamoDB)]
-    Browser -- "PUT via presigned URL" --> Img
+    Browser -- "sign up / log in" --> Cognito[Cognito user pool]
+    APIGW -. "Cognito authorizer" .-> Cognito
 ```
 
 | Service | Role |
