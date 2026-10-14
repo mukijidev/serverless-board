@@ -21,6 +21,8 @@ public class Post {
     private String createdAt;
     private List<String> imageKeys;
     private Integer commentCount;
+    private String thumbnailKey;
+
 
     @DynamoDbPartitionKey
     @DynamoDbAttribute("pk")
@@ -63,4 +65,7 @@ public class Post {
 
     public Integer getCommentCount() {return commentCount;}
     public void setCommentCount(Integer commentCount) {this.commentCount = commentCount;}
+
+    public String getThumbnailKey() { return thumbnailKey;}
+    public void setThumbnailKey(String thumbnailKey) {this.thumbnailKey = thumbnailKey;}
 }

@@ -23,6 +23,15 @@ public final class PostRules {
         return null;
     }
 
+    public static String thumbnailKeyError(String thumbnailKey, List<String> imageKeys) {
+        if(thumbnailKey != null && !imageKeys.contains(thumbnailKey)) {
+            return "thumbnailkey must be one of the imageKeys";
+        }
+
+
+        return null;
+    }
+
     public static String postId(APIGatewayProxyRequestEvent event) {
         Map<String, String> params = event.getPathParameters();
         return params == null ? null : params.get("postId");

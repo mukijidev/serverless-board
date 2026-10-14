@@ -59,6 +59,13 @@ public class CreatePostHandler
             return ApiResponses.error(400, imageError);
         }
 
+        String thumbnailError = PostRules.thumbnailKeyError(request.thumbnailKey(), imageKeys);
+        if(thumbnailError != null) {
+            return ApiResponses.error(400, thumbnailError);
+        }
+
+
+
 
         String postId = UUID.randomUUID().toString();
         String createdAt = TIMESTAMP.format(Instant.now());
@@ -74,6 +81,7 @@ public class CreatePostHandler
         post.setAuthorId(userId);
         post.setCreatedAt(createdAt);
         post.setImageKeys(imageKeys);
+        post.setThumbnailKey(request.thumbnailKey());
         post.setCommentCount(0);
 
         try {
