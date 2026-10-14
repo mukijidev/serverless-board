@@ -101,8 +101,14 @@ function logout() {
   clearToken();
 }
 
-async function signUp(email, password) {
-  await cognitoRequest("SignUp", { Username: email, Password: password });
+
+
+async function signUp(email, password, nickname) {
+  await cognitoRequest("SignUp",
+     { Username: email,
+       Password: password,
+       UserAttributes: [{Name: "nickname", Value: nickname}],
+      });
 }
 
 async function confirmSignUp(email, code) {
@@ -223,6 +229,7 @@ function renderContent(text, imageKeys) {
 function renderPost(post, user) {
   const item = document.createElement("li");
   item.className = "post";
+  const isMine = Boolean(user) && user.id === post.authorId;
 
   // click to expand
   const row = document.createElement("button");
@@ -250,11 +257,16 @@ function renderPost(post, user) {
   rowTitle.className = "row-title";
   rowTitle.textContent = `${post.title} [${post.commentCount ?? 0}]`;
 
+  const rowAuthor = document.createElement("span");
+  rowAuthor.className = "row-author";
+  rowAuthor.classList.toggle("mine", isMine);
+  rowAuthor.textContent = post.authorName ?? "Unknown";
+
   const rowMeta = document.createElement("span");
   rowMeta.className = "row-meta";
   rowMeta.textContent = post.createdAt ? new Date(post.createdAt).toLocaleDateString() : "";
 
-  row.append(thumb, rowTitle, rowMeta);
+  row.append(thumb, rowTitle, rowAuthor, rowMeta);
 
 
   //hidden until the row is clicked
@@ -276,7 +288,7 @@ function renderPost(post, user) {
     detail.append(renderImages(unusedKeys));
   }
 
-  if (user && user.id === post.authorId) {
+  if (isMine) {
     const actions = document.createElement("div");
     actions.className = "post-actions";
     actions.append(
@@ -682,7 +694,15 @@ function bindEvents() {
     const email = el("signup-email").value;
     setBusy(form, true);
     try {
+      const nickname = el("signup-nickname").value.trim();
+      if(nickname.length < 2) {
+        showMessage("Nickname must be at least 2 characvters.", "error");
+        return;
+      }
+      
       await signUp(email, el("signup-password").value);
+      
+      
       form.reset();
       showConfirmForm(email);
       showMessage(

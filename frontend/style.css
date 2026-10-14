@@ -300,3 +300,15 @@ button.danger {
   margin: 8px 0;
   border-radius: 6px;
 }
+
+.row-author {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.row-author.mine {
+  color: var(--accent);
+  font-weight: 700;
+}
