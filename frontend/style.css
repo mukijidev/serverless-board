@@ -186,7 +186,7 @@ button.danger {
 }
 
 
-.post > button {
+.post-detail > button {
   margin-top: 8px;
 }
 
@@ -220,4 +220,14 @@ button.danger {
   margin-left: 8px;
   padding: 2px 8px;
   font-size: 0.8rem;
+}
+
+.post-row {
+  display: block;
+  width: 100%;
+  padding: 10px 0;
+  background: none;
+  color: var(--text);
+  font-weight: 600;
+  text-align: left;
 }

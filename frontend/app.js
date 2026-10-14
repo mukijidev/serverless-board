@@ -191,45 +191,58 @@ function renderPost(post, user) {
   const item = document.createElement("li");
   item.className = "post";
 
+  // click to expand
+  const row = document.createElement("button");
+  row.type = "button";
+  row.className = "post-row";
+  row.dataset.action = "toggle-detail";
+  row.dataset.postId = post.postId;
+  row.textContent = `${post.title} [${post.commentCount ?? 0}]`;
+
+  //hidden until the row is clicked
+  const detail = document.createElement("div");
+  detail.className = "post-detail";
+  detail.hidden = true;
+
   const title = document.createElement("h3");
   title.className = "post-title";
   title.textContent = post.title;
 
   const meta = document.createElement("div");
   meta.className = "post-meta";
-  meta.textContent = post.createdAt
-    ? new Date(post.createdAt).toLocaleString()
-    : "";
+  meta.textContent = post.createdAt ? new Date(post.createdAt).toLocaleString() : "";
 
   const content = document.createElement("p");
   content.className = "post-content";
   content.textContent = post.content;
 
+  detail.append(title, meta, content);
+
   if (post.imageKeys && post.imageKeys.length > 0) {
-    item.append(renderImages(post.imageKeys));
+    detail.append(renderImages(post.imageKeys));
   }
-  
-  item.append(title, meta, content);
 
   if (user && user.id === post.authorId) {
     const actions = document.createElement("div");
     actions.className = "post-actions";
     actions.append(
       actionButton("Edit", "edit", post.postId, "secondary"),
-      actionButton("Delete", "delete", post.postId, "danger"),
+      actionButton("Delete", "delete", post.postId, "danger")
     );
-    item.append(actions);
+    detail.append(actions);
   }
 
-    const toggle = actionButton(
+  const toggle = actionButton(
     `Comments (${post.commentCount ?? 0})`,
     "toggle-comments",
     post.postId,
-    "secondary",
+    "secondary"
   );
+
   const panel = document.createElement("div");
   panel.className = "comments";
   panel.hidden = true;
+
   const commentList = document.createElement("ul");
   commentList.className = "comment-list";
   panel.append(commentList);
@@ -237,7 +250,9 @@ function renderPost(post, user) {
   if (user) {
     panel.append(renderCommentForm(post.postId));
   }
-  item.append(toggle, panel);
+
+  detail.append(toggle, panel);
+  item.append(row, detail);
 
   return item;
 }
@@ -649,6 +664,9 @@ function bindEvents() {
       await loadPosts();
     } else if (action === "delete") {
       await handleDelete(postId, button);
+    } else if (action === "toggle-detail") {
+      const detail = item.querySelector(".post-detail");
+      detail.hidden = !detail.hidden;
     } else if (action === "toggle-comments") {
       await toggleComments(item, postId, button);
     } else if (action === "add-comment") {
