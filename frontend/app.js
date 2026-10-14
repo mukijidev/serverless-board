@@ -197,16 +197,13 @@ function renderPost(post, user) {
   row.className = "post-row";
   row.dataset.action = "toggle-detail";
   row.dataset.postId = post.postId;
+  row.dataset.title = post.title;
   row.textContent = `${post.title} [${post.commentCount ?? 0}]`;
 
   //hidden until the row is clicked
   const detail = document.createElement("div");
   detail.className = "post-detail";
   detail.hidden = true;
-
-  const title = document.createElement("h3");
-  title.className = "post-title";
-  title.textContent = post.title;
 
   const meta = document.createElement("div");
   meta.className = "post-meta";
@@ -216,7 +213,7 @@ function renderPost(post, user) {
   content.className = "post-content";
   content.textContent = post.content;
 
-  detail.append(title, meta, content);
+  detail.append(meta, content);
 
   if (post.imageKeys && post.imageKeys.length > 0) {
     detail.append(renderImages(post.imageKeys));
@@ -362,27 +359,28 @@ async function deleteComment(postId, commentId) {
 
 
 function startEdit(item, postId) {
-  const titleElement = item.querySelector(".post-title");
+  const detail = item.querySelector(".post-detail");
+  const row = item.querySelector(".post-row");
   const contentElement = item.querySelector(".post-content");
+
 
   const titleInput = document.createElement("input");
   titleInput.className = "edit-title";
   titleInput.maxLength = 100;
-  titleInput.value = titleElement.textContent;
+  titleInput.value = row.dataset.title;
 
   const contentInput = document.createElement("textarea");
   contentInput.className = "edit-content";
   contentInput.value = contentElement.textContent;
 
-  titleElement.replaceWith(titleInput);
+  detail.prepend(titleInput);
   contentElement.replaceWith(contentInput);
 
-  item
-    .querySelector(".post-actions")
-    .replaceChildren(
-      actionButton("Save", "save", postId, ""),
-      actionButton("Cancel", "cancel", postId, "secondary"),
-    );
+  item.querySelector(".post-actions")
+  .replaceChildren (
+    actionButton("Save", "save", postId, ""),
+    actionButton("Cancel", "cancel", postId, "secondary"),
+  );
 }
 
 async function handleSave(item, postId, button) {

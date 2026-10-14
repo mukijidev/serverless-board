@@ -139,10 +139,6 @@ button.danger {
   padding: 12px;
 }
 
-.post-title {
-  margin: 0 0 4px;
-  font-size: 1.05rem;
-}
 
 .post-meta {
   color: var(--muted);
