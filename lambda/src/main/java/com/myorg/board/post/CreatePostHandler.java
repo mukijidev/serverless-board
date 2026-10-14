@@ -79,6 +79,7 @@ public class CreatePostHandler
         post.setTitle(request.title());
         post.setContent(request.content());
         post.setAuthorId(userId);
+        post.setAuthorName(PostRules.authorName(Auth.nickname(event)));
         post.setCreatedAt(createdAt);
         post.setImageKeys(imageKeys);
         post.setThumbnailKey(request.thumbnailKey());

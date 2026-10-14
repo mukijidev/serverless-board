@@ -8,6 +8,7 @@ import java.util.Map;
 public final class PostRules {
     public static final int MAX_TITLE_LENGTH = 100;
     public static final int MAX_IMAGES = 5;
+    public static final int MAX_AUTHOR_NAME_LENGTH = 20;
 
     private PostRules() {}
 
@@ -35,5 +36,16 @@ public final class PostRules {
     public static String postId(APIGatewayProxyRequestEvent event) {
         Map<String, String> params = event.getPathParameters();
         return params == null ? null : params.get("postId");
+    }
+
+    public static String authorName(String nickname) {
+        if (nickname == null) {
+            return null;
+        }
+        String name = nickname.strip();
+        if (name.isEmpty()) {
+            return null;
+        }
+        return name.substring(0, Math.min(name.length(), MAX_AUTHOR_NAME_LENGTH));
     }
 }

@@ -22,7 +22,7 @@ public class Post {
     private List<String> imageKeys;
     private Integer commentCount;
     private String thumbnailKey;
-
+    private String authorName;
 
     @DynamoDbPartitionKey
     @DynamoDbAttribute("pk")
@@ -68,4 +68,8 @@ public class Post {
 
     public String getThumbnailKey() { return thumbnailKey;}
     public void setThumbnailKey(String thumbnailKey) {this.thumbnailKey = thumbnailKey;}
+
+    public String getAuthorName() {return authorName;}
+    public void setAuthorName(String authorName) {this.authorName = authorName;}
+
 }
