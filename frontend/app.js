@@ -199,6 +199,20 @@ function renderPost(post, user) {
   row.dataset.postId = post.postId;
   row.dataset.title = post.title;
   
+  const thumb = document.createElement("span");
+  thumb.className = "row-thumb";
+
+  const firstImage = post.imageKeys?.[0];
+  if (firstImage) {
+    const image = document.createElement("img");
+    image.src = `/${firstImage}`;
+    image.alt = "";
+    image.loading = "lazy";
+    thumb.append(image);
+  }
+
+
+
   const rowTitle = document.createElement("span");
   rowTitle.className = "row-title";
   rowTitle.textContent = `${post.title} [${post.commentCount ?? 0}]`;
@@ -207,8 +221,8 @@ function renderPost(post, user) {
   rowMeta.className = "row-meta";
   rowMeta.textContent = post.createdAt ? new Date(post.createdAt).toLocaleDateString() : "";
 
-  row.append(rowTitle, rowMeta);
-  
+  row.append(thumb, rowTitle, rowMeta);
+
 
   //hidden until the row is clicked
   const detail = document.createElement("div");
